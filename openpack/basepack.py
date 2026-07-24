@@ -431,15 +431,21 @@ class ContentTypes(set):
 
     xmlns = '{http://schemas.openxmlformats.org/package/2006/content-types}'
 
+    def __init__(self, *args, **kwargs):
+        super(ContentTypes, self).__init__(*args, **kwargs)
+        self._item_map_cache = {}
+
     def add_override(self, part):
         ct = ContentType.Override(part.content_type, part.name)
         self.add(ct)
+        self._item_map_cache = {}
         return ct
 
     def add_default(self, part):
         ext = get_ext(part.name)
         ct = ContentType.Default(part.content_type, ext)
         self.add(ct)
+        self._item_map_cache = {}
         return ct
 
     def dump(self, encoding='utf-8'):
@@ -462,9 +468,13 @@ class ContentTypes(set):
         return cls(map(ContentType.from_element, elem))
 
     def _item_map(self, class_filter=object):
-        return FoldedCaseKeyedDict(
-            (item.key, item) for item in self if isinstance(item, class_filter)
-        )
+        # Cache the result to avoid O(n²) behavior during package loading
+        cache_key = id(class_filter)
+        if cache_key not in self._item_map_cache:
+            self._item_map_cache[cache_key] = FoldedCaseKeyedDict(
+                (item.key, item) for item in self if isinstance(item, class_filter)
+            )
+        return self._item_map_cache[cache_key]
 
     items = property(_item_map)
 

@@ -21,14 +21,14 @@ log = logging.getLogger(__name__)
 
 # even though Element looks like a class name, it's actually a function. To
 #   get the actual class, construct an instance and grab its class.
-ElementClass = Element('__').__class__
+ElementClass = Element("__").__class__
 
 ooxml_namespaces = dict(
-    cp='http://schemas.openxmlformats.org/package/2006/metadata/core-properties',
-    dc='http://purl.org/dc/elements/1.1/',
-    dcterms='http://purl.org/dc/terms/',
-    dcmitype='http://purl.org/dc/dcmitype/',
-    xsi='http://www.w3.org/2001/XMLSchema-instance',
+    cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
+    dc="http://purl.org/dc/elements/1.1/",
+    dcterms="http://purl.org/dc/terms/",
+    dcmitype="http://purl.org/dc/dcmitype/",
+    xsi="http://www.w3.org/2001/XMLSchema-instance",
 )
 
 
@@ -38,14 +38,14 @@ class Relational:
     def relate(self, part, id=None):
         """Relate this package component to the supplied part."""
         assert part.name.startswith(self.base)
-        name = part.name[len(self.base) :].lstrip('/')
+        name = part.name[len(self.base) :].lstrip("/")
         rel = Relationship(self, name, part.rel_type, id=id)
         self.relationships.add(rel)
         return rel
 
     def related(self, reltype):
         """Return a list of parts related to this one via reltype."""
-        package = getattr(self, 'package', None) or self
+        package = getattr(self, "package", None) or self
         return [
             package[posixpath.join(self.base, rel.target)]
             for rel in self.relationships.types.get(reltype, [])
@@ -75,11 +75,11 @@ class Package(collections.abc.MutableMapping, Relational):
 
     def __init__(self):
         self.parts = {}
-        self.base = '/'
+        self.base = "/"
         self.relationships = rels = Relationships(self, self)
         self[rels.name] = rels
         self.content_types = ContentTypes()
-        self.content_types.add(ContentType.Default(rels.content_type, 'rels'))
+        self.content_types.add(ContentType.Default(rels.content_type, "rels"))
 
     def __setitem__(self, name, part):
         self._validate_part(name, part)
@@ -126,9 +126,9 @@ class Package(collections.abc.MutableMapping, Relational):
         # recognize a part with a part name derived from another part name by
         # appending segments to it
         for cname in self:
-            assert not cname.startswith(name), (
-                f'The name {name} is a derivative of {cname}'
-            )
+            assert not cname.startswith(
+                name
+            ), f"The name {name} is a derivative of {cname}"
         assert name == part.name, f"{name} != {part.name}"
         return part
 
@@ -154,7 +154,7 @@ class Package(collections.abc.MutableMapping, Relational):
         Load a part into this package based on its relationship type
         """
         if self.content_types.find_for(name) is None:
-            log.warning('no content type found for part {name}'.format(**vars()))
+            log.warning("no content type found for part {name}".format(**vars()))
             return
         cls = Part.classes_by_rel_type[rel_type]
         part = cls(self, name)
@@ -219,9 +219,9 @@ class RelationshipTypeHandler(type):
         # if the class (or its parent) doesn't already have a mapping
         #  of relationship type to class, create one (with this new
         #  class being the default).
-        if not hasattr(cls, 'classes_by_rel_type'):
+        if not hasattr(cls, "classes_by_rel_type"):
             cls.classes_by_rel_type = defaultdict(lambda: cls)
-        rt = attrs.get('rel_type', None)
+        rt = attrs.get("rel_type", None)
         if rt:
             cls.classes_by_rel_type[rt] = cls
         return cls
@@ -257,14 +257,14 @@ class Part(Relational, metaclass=RelationshipTypeHandler):
     @validator
     def _set_name(self, name):
         assert name
-        assert name[0] == '/', "%s does not start with a '/'" % name
-        assert name[-1] != '/', "%s ends with a '/'" % name
+        assert name[0] == "/", "%s does not start with a '/'" % name
+        assert name[-1] != "/", "%s ends with a '/'" % name
         # TODO: test for empty segments
         # TODO: test for only pchar characters (RFC 3986)
-        for segment in name[1:].split('/'):
+        for segment in name[1:].split("/"):
             # TODO: test for percent encoded slash and unreserved chars
-            assert segment[-1] != '.'
-            assert segment != '.'
+            assert segment[-1] != "."
+            assert segment != "."
         self._name = name
 
     def _get_name(self):
@@ -280,9 +280,9 @@ class Part(Relational, metaclass=RelationshipTypeHandler):
         """Return the raw bytes of the Part."""
         data = self.data
         if isinstance(data, ElementClass):
-            data = tostring(data, encoding='utf-8', pretty_print=True)
+            data = tostring(data, encoding="utf-8", pretty_print=True)
         if isinstance(data, str):
-            return data.encode('utf-8')
+            return data.encode("utf-8")
         return data
 
     def load(self, data):
@@ -336,7 +336,7 @@ class Relationship:
 
     @staticmethod
     def _generate_id():
-        return "d%s" % codecs.encode(os.urandom(4), 'hex').decode()
+        return "d%s" % codecs.encode(os.urandom(4), "hex").decode()
 
 
 class Relationships(Part):
@@ -357,7 +357,7 @@ class Relationships(Part):
         self.ids = set()
         self.children = set()
         self.types = {}
-        self.encoding = encoding or 'utf-8'
+        self.encoding = encoding or "utf-8"
 
     class _relationships:
         def __get__(self, instance, owner):
@@ -370,12 +370,12 @@ class Relationships(Part):
 
     def dump(self):
         rels = Element(
-            self.xmlns + 'Relationships', nsmap={None: self.xmlns.strip('{}')}
+            self.xmlns + "Relationships", nsmap={None: self.xmlns.strip("{}")}
         )
         for rel in self:
             rels.append(
                 Element(
-                    'Relationship',
+                    "Relationship",
                     TargetMode=rel.mode,
                     Target=rel.target,
                     Type=rel.type,
@@ -394,10 +394,10 @@ class Relationships(Part):
         """
         elem = fromstring(data)
         for rel in elem:
-            mode = rel.get('TargetMode')
-            target = rel.get('Target')
-            rtype = rel.get('Type')
-            id = rel.get('Id')
+            mode = rel.get("TargetMode")
+            target = rel.get("Target")
+            rtype = rel.get("Type")
+            id = rel.get("Id")
             relationship = Relationship(source, target, rtype, id, mode)
             self.add(relationship)
 
@@ -423,13 +423,13 @@ class Relationships(Part):
         if isinstance(source, Package):
             return "/_rels/.rels"
         base, item = posixpath.split(source.name)
-        return posixpath.join(base, '_rels/%s.rels' % item)
+        return posixpath.join(base, "_rels/%s.rels" % item)
 
 
 class ContentTypes(set):
     """A container for managing Package content types."""
 
-    xmlns = '{http://schemas.openxmlformats.org/package/2006/content-types}'
+    xmlns = "{http://schemas.openxmlformats.org/package/2006/content-types}"
 
     def __init__(self, *args, **kwargs):
         super(ContentTypes, self).__init__(*args, **kwargs)
@@ -448,7 +448,7 @@ class ContentTypes(set):
         self._item_map_cache = {}
         return ct
 
-    def dump(self, encoding='utf-8'):
+    def dump(self, encoding="utf-8"):
         return tostring(self.to_element(), encoding=encoding)
 
     @classmethod
@@ -457,14 +457,14 @@ class ContentTypes(set):
         return cls.from_element(elem)
 
     def to_element(self):
-        elem = Element(self.xmlns + 'Types', nsmap={None: self.xmlns.strip('{}')})
+        elem = Element(self.xmlns + "Types", nsmap={None: self.xmlns.strip("{}")})
         elem.extend(ct.to_element() for ct in self)
         return elem
 
     @classmethod
     def from_element(cls, elem):
         ns, tag = parse_tag(elem.tag)
-        assert tag == 'Types'
+        assert tag == "Types"
         return cls(map(ContentType.from_element, elem))
 
     def _item_map(self, class_filter=object):
@@ -530,11 +530,11 @@ class ContentType:
         ns, class_name = parse_tag(element.tag)
         class_ = getattr(ContentType, class_name)
         if not class_:
-            msg = 'Invalid Types child element: {class_name}'.format(**vars())
+            msg = "Invalid Types child element: {class_name}".format(**vars())
             raise ValueError(msg)
         # construct the subclass
         key = element.get(class_.key_name)
-        name = element.get('ContentType')
+        name = element.get("ContentType")
         return class_(name, key)
 
     def __repr__(self):
@@ -546,7 +546,7 @@ class ContentType:
         This object is equal to another if the other is of the
         same class and the name and key match.
         """
-        attrs = 'name key'.split()
+        attrs = "name key".split()
         all_attrs_eq = all(
             getattr(self, attr, None) == getattr(other, attr, None) for attr in attrs
         )
@@ -559,7 +559,7 @@ class ContentType:
 class Default(ContentType):
     """A Default content type, based on a file extension."""
 
-    key_name = 'Extension'
+    key_name = "Extension"
 
 
 ContentType.Default = Default
@@ -569,7 +569,7 @@ del Default
 class Override(ContentType):
     """An Override content type, based on a part name."""
 
-    key_name = 'PartName'
+    key_name = "PartName"
 
 
 ContentType.Override = Override
@@ -578,7 +578,7 @@ del Override
 # Construct E, a convient namespace for making elements in the OOXML
 # namespaces.
 E = type(
-    'E',
+    "E",
     (object,),
     dict(
         (key, _ElementMaker(namespace=namespace, nsmap=ooxml_namespaces))
@@ -588,15 +588,15 @@ E = type(
 
 
 def DC(tag):
-    return '{{{dc}}}'.format(**ooxml_namespaces) + tag
+    return "{{{dc}}}".format(**ooxml_namespaces) + tag
 
 
 def CP(tag):
-    return '{{{cp}}}'.format(**ooxml_namespaces) + tag
+    return "{{{cp}}}".format(**ooxml_namespaces) + tag
 
 
 def DCTERMS(tag):
-    return '{{{dcterms}}}'.format(**ooxml_namespaces) + tag
+    return "{{{dcterms}}}".format(**ooxml_namespaces) + tag
 
 
 def identity(x):
@@ -613,16 +613,16 @@ class CoreProperties(Part):
         "http://schemas.openxmlformats.org/package/2006/"
         "relationships/metadata/core-properties"
     )
-    title = ''
-    subject = ''
-    creator = ''
-    keywords = ''
-    description = ''
-    last_modified_by = ''
+    title = ""
+    subject = ""
+    creator = ""
+    keywords = ""
+    description = ""
+    last_modified_by = ""
     revision = 1
     created = None
     modified = None
-    dt_format = '%Y-%m-%dT%H:%M:%SZ'
+    dt_format = "%Y-%m-%dT%H:%M:%SZ"
 
     def __init__(self, package, name):
         Part.__init__(self, package, name)
@@ -641,15 +641,15 @@ class CoreProperties(Part):
         map(
             set_attr_if_tag,
             (
-                DC('title'),
-                DC('subject'),
-                DC('creator'),
-                CP('keywords'),
-                DC('description'),
+                DC("title"),
+                DC("subject"),
+                DC("creator"),
+                CP("keywords"),
+                DC("description"),
             ),
         )
-        set_attr_if_tag(CP('revision'), transform=int)
-        set_attr_if_tag(CP('lastModifiedBy'), 'last_modified_by')
+        set_attr_if_tag(CP("revision"), transform=int)
+        set_attr_if_tag(CP("lastModifiedBy"), "last_modified_by")
 
         def parse_datetime(str):
             try:
@@ -658,10 +658,10 @@ class CoreProperties(Part):
                 result = str
             return result
 
-        set_attr_if_tag(DCTERMS('created'), transform=parse_datetime)
-        set_attr_if_tag(DCTERMS('modified'), transform=parse_datetime)
+        set_attr_if_tag(DCTERMS("created"), transform=parse_datetime)
+        set_attr_if_tag(DCTERMS("modified"), transform=parse_datetime)
 
-    def dump(self, encoding='utf-8'):
+    def dump(self, encoding="utf-8"):
         return tostring(self.to_element(), encoding=encoding)
 
     def to_element(self):
@@ -673,10 +673,10 @@ class CoreProperties(Part):
             self.modified = now
         created_str = self.created.strftime(self.dt_format)
         created = E.dcterms.created(created_str)
-        created.set('{{{xsi}}}type'.format(**ooxml_namespaces), 'dcterms:W3CDTF')
+        created.set("{{{xsi}}}type".format(**ooxml_namespaces), "dcterms:W3CDTF")
         modified_str = self.modified.strftime(self.dt_format)
         modified = E.dcterms.modified(modified_str)
-        modified.set('{{{xsi}}}type'.format(**ooxml_namespaces), 'dcterms:W3CDTF')
+        modified.set("{{{xsi}}}type".format(**ooxml_namespaces), "dcterms:W3CDTF")
         # create the element
         element = E.cp.coreProperties(
             E.dc.title(self.title),
